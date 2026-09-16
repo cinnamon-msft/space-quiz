@@ -316,6 +316,38 @@
       animation: float-in 350ms ease both;
     }
 
+    .fact {
+      min-height: 24px;
+      margin: 14px 0 0;
+      color: var(--muted);
+      text-align: center;
+      animation: float-in 350ms ease both;
+    }
+
+    .next-action {
+      margin: 16px auto 0;
+      padding: 10px 18px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface-strong);
+      color: var(--text);
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+    }
+
+    .next-action:hover {
+      transform: translateY(-1px);
+      border-color: var(--purple);
+      box-shadow: 0 8px 20px rgba(112, 71, 235, 0.12);
+    }
+
+    .next-action:focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--purple) 40%, transparent);
+      outline-offset: 3px;
+    }
+
     .question-stage.enter {
       animation: slide-in 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
     }
@@ -484,7 +516,11 @@
             <p class="question-tag">Choose one answer</p>
             <h1 id="question"></h1>
             <div class="answers" id="answers"></div>
-            <p class="feedback" id="feedback" aria-live="polite"></p>
+            <div aria-live="polite" aria-atomic="true" role="status">
+              <p class="feedback" id="feedback"></p>
+              <p class="fact" id="fact"></p>
+            </div>
+            <button class="next-action" id="next-action" type="button" hidden>Next question</button>
           </div>
         </div>
       </div>
@@ -504,58 +540,70 @@
       {
         question: "Which planet is known as the Red Planet?",
         answers: ["Venus", "Mars", "Jupiter", "Mercury"],
-        correct: 1
+        correct: 1,
+        fact: "Mars looks red because iron-rich dust on its surface rusts in the thin atmosphere."
       },
       {
         question: "Who was the first person to walk on the Moon?",
         answers: ["Yuri Gagarin", "Buzz Aldrin", "Neil Armstrong", "John Glenn"],
-        correct: 2
+        correct: 2,
+        fact: "Neil Armstrong stepped onto the Moon on July 20, 1969, during NASA's Apollo 11 mission."
       },
       {
         question: "What was the name of the first artificial satellite?",
         answers: ["Sputnik 1", "Explorer 1", "Vanguard 1", "Luna 2"],
-        correct: 0
+        correct: 0,
+        fact: "Launched by the Soviet Union in 1957, Sputnik 1 began the space age and orbited Earth for about three months."
       },
       {
         question: "Which spacecraft has traveled farthest from Earth?",
         answers: ["New Horizons", "Voyager 1", "Pioneer 10", "Cassini"],
-        correct: 1
+        correct: 1,
+        fact: "Voyager 1 entered interstellar space in 2012 and remains the most distant human-made object."
       },
       {
         question: "What is the largest planet in our solar system?",
         answers: ["Saturn", "Neptune", "Earth", "Jupiter"],
-        correct: 3
+        correct: 3,
+        fact: "Jupiter is so large that more than 1,300 Earths could fit inside it by volume."
       },
       {
         question: "Which space telescope launched in December 2021?",
         answers: ["Hubble", "Kepler", "James Webb", "Spitzer"],
-        correct: 2
+        correct: 2,
+        fact: "The James Webb Space Telescope observes mainly infrared light, letting it see very distant and early galaxies."
       },
       {
         question: "What is the name of our galaxy?",
         answers: ["Andromeda", "Milky Way", "Whirlpool", "Sombrero"],
-        correct: 1
+        correct: 1,
+        fact: "Our Milky Way is a barred spiral galaxy estimated to contain hundreds of billions of stars."
       },
       {
         question: "Which planet did the Curiosity rover land on?",
         answers: ["Mars", "Venus", "Mercury", "Jupiter"],
-        correct: 0
+        correct: 0,
+        fact: "Curiosity landed in Mars' Gale Crater in 2012 to investigate whether the planet once had habitable conditions."
       },
       {
         question: "What was the first reusable spacecraft?",
         answers: ["Soyuz", "Apollo", "Space Shuttle", "Dragon"],
-        correct: 2
+        correct: 2,
+        fact: "NASA's Space Shuttle, first launched in 1981, was the first orbital spacecraft designed for partial reuse."
       },
       {
         question: "Which celestial body has the strongest gravity in our solar system?",
         answers: ["Earth", "Jupiter", "The Sun", "Saturn"],
-        correct: 2
+        correct: 2,
+        fact: "The Sun contains about 99.8% of the solar system's mass, giving it the strongest gravitational pull."
       }
     ];
 
     const questionElement = document.querySelector("#question");
     const answersElement = document.querySelector("#answers");
     const feedbackElement = document.querySelector("#feedback");
+    const factElement = document.querySelector("#fact");
+    const nextActionButton = document.querySelector("#next-action");
     const scoreElement = document.querySelector("#score");
     const questionCountElement = document.querySelector("#question-count");
     const progressBarElement = document.querySelector("#progress-bar");
@@ -574,6 +622,8 @@
       acceptingAnswer = true;
       feedbackElement.textContent = "";
       feedbackElement.className = "feedback";
+      factElement.textContent = "";
+      nextActionButton.hidden = true;
       questionElement.textContent = item.question;
       questionCountElement.textContent = `Question ${currentQuestion + 1} of ${questions.length}`;
       scoreElement.textContent = score;
@@ -622,8 +672,10 @@
         feedbackElement.textContent = `Not quite — ${item.answers[item.correct]} is correct.`;
         feedbackElement.classList.add("wrong");
       }
-
-      window.setTimeout(advanceQuiz, 1250);
+      factElement.textContent = `Space fact: ${item.fact}`;
+      nextActionButton.textContent = currentQuestion === questions.length - 1 ? "See results" : "Next question";
+      nextActionButton.hidden = false;
+      nextActionButton.focus();
     }
 
     function advanceQuiz() {
@@ -661,8 +713,67 @@
       renderQuestion();
     }
 
+    async function runBehaviorChecks() {
+      restartQuiz();
+
+      const initialQuestion = questionElement.textContent;
+      const initialItem = questions[0];
+      const firstChoice = initialItem.correct === 0 ? 1 : 0;
+      const firstButtons = Array.from(answersElement.querySelectorAll(".answer"));
+      firstButtons[firstChoice].click();
+
+      if (!feedbackElement.textContent) {
+        throw new Error("Expected feedback text after selecting an answer.");
+      }
+      if (!factElement.textContent.includes(initialItem.fact)) {
+        throw new Error("Expected a matching space fact after selecting an answer.");
+      }
+      if (nextActionButton.hidden || nextActionButton.textContent !== "Next question") {
+        throw new Error("Expected a visible Next question action after answering.");
+      }
+
+      await new Promise((resolve) => window.setTimeout(resolve, 1400));
+      if (questionElement.textContent !== initialQuestion) {
+        throw new Error("Quiz advanced automatically instead of waiting for Next question.");
+      }
+
+      nextActionButton.click();
+      if (questionElement.textContent === initialQuestion) {
+        throw new Error("Expected Next question to advance the quiz.");
+      }
+
+      while (currentQuestion < questions.length - 1) {
+        const item = questions[currentQuestion];
+        const buttons = Array.from(answersElement.querySelectorAll(".answer"));
+        buttons[item.correct].click();
+        nextActionButton.click();
+      }
+
+      const lastItem = questions[currentQuestion];
+      const lastButtons = Array.from(answersElement.querySelectorAll(".answer"));
+      lastButtons[lastItem.correct].click();
+
+      if (nextActionButton.textContent !== "See results") {
+        throw new Error("Expected the final action to clearly open results.");
+      }
+
+      nextActionButton.click();
+      if (!resultsElement.classList.contains("visible")) {
+        throw new Error("Expected the final action to open the results screen.");
+      }
+
+      console.info("Quiz behavior checks passed.");
+    }
+
+    nextActionButton.addEventListener("click", advanceQuiz);
     restartButton.addEventListener("click", restartQuiz);
     renderQuestion();
+
+    if (new URLSearchParams(window.location.search).has("run-tests")) {
+      runBehaviorChecks().catch((error) => {
+        console.error("Quiz behavior checks failed:", error);
+      });
+    }
   </script>
 </body>
 </html>
