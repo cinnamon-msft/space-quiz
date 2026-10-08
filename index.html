@@ -389,6 +389,72 @@
       color: var(--muted);
     }
 
+    .missed-review {
+      margin: 0 auto 24px;
+      max-width: 440px;
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: color-mix(in srgb, var(--surface-strong) 88%, transparent);
+      text-align: left;
+    }
+
+    .missed-review h3 {
+      margin: 0 0 10px;
+      font-size: 16px;
+      letter-spacing: -0.01em;
+    }
+
+    .perfect-message {
+      margin: 0;
+      color: var(--green);
+      font-weight: 700;
+    }
+
+    .missed-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 10px;
+    }
+
+    .missed-item {
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface-strong);
+    }
+
+    .missed-question {
+      margin: 0 0 8px;
+      font-weight: 700;
+      line-height: 1.4;
+    }
+
+    .missed-index {
+      color: var(--purple-dark);
+    }
+
+    .missed-answer {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    .missed-answer + .missed-answer {
+      margin-top: 4px;
+    }
+
+    .missed-answer.correct-answer {
+      color: var(--green);
+    }
+
+    .missed-label {
+      font-weight: 700;
+      color: var(--text);
+    }
+
     .restart {
       min-height: 48px;
       padding: 12px 24px;
@@ -470,6 +536,30 @@
         padding: 25px 20px 22px;
       }
 
+      .results {
+        padding: 38px 20px 32px;
+      }
+
+      .results h2 {
+        font-size: 27px;
+      }
+
+      .result-score {
+        font-size: 18px;
+      }
+
+      .missed-review {
+        padding: 14px;
+      }
+
+      .missed-question {
+        font-size: 14px;
+      }
+
+      .missed-answer {
+        font-size: 14px;
+      }
+
       .mission-status {
         padding-inline: 8px;
         font-size: 10px;
@@ -530,6 +620,11 @@
         <h2 id="result-title"></h2>
         <p class="result-score" id="result-score"></p>
         <p class="result-message" id="result-message"></p>
+        <section class="missed-review" id="missed-review" aria-labelledby="missed-review-title">
+          <h3 id="missed-review-title">Questions to revisit</h3>
+          <p class="perfect-message" id="perfect-message" hidden>Perfect score! You nailed every question this round.</p>
+          <ul class="missed-list" id="missed-list"></ul>
+        </section>
         <button class="restart" id="restart" type="button">Explore again</button>
       </div>
     </section>
@@ -611,10 +706,18 @@
     const questionStageElement = document.querySelector("#question-stage");
     const quizViewElement = document.querySelector("#quiz-view");
     const resultsElement = document.querySelector("#results");
+    const resultEmojiElement = document.querySelector("#result-emoji");
+    const resultTitleElement = document.querySelector("#result-title");
+    const resultScoreElement = document.querySelector("#result-score");
+    const resultMessageElement = document.querySelector("#result-message");
+    const missedReviewElement = document.querySelector("#missed-review");
+    const perfectMessageElement = document.querySelector("#perfect-message");
+    const missedListElement = document.querySelector("#missed-list");
     const restartButton = document.querySelector("#restart");
 
     let currentQuestion = 0;
     let score = 0;
+    let selectedAnswers = [];
     let acceptingAnswer = true;
 
     function renderQuestion() {
@@ -654,6 +757,7 @@
       acceptingAnswer = false;
       const item = questions[currentQuestion];
       const buttons = Array.from(answersElement.querySelectorAll(".answer"));
+      selectedAnswers[currentQuestion] = selectedIndex;
       const isCorrect = selectedIndex === item.correct;
 
       buttons.forEach((button) => {
@@ -697,19 +801,76 @@
           : { emoji: "🌙", title: "Keep exploring!", message: "Every great explorer starts by looking up." };
 
       quizViewElement.hidden = true;
-      document.querySelector("#result-emoji").textContent = reaction.emoji;
-      document.querySelector("#result-title").textContent = reaction.title;
-      document.querySelector("#result-score").textContent = `${score} out of ${questions.length} correct`;
-      document.querySelector("#result-message").textContent = reaction.message;
+      resultEmojiElement.textContent = reaction.emoji;
+      resultTitleElement.textContent = reaction.title;
+      resultScoreElement.textContent = `${score} out of ${questions.length} correct`;
+      resultMessageElement.textContent = reaction.message;
+      renderMissedReview();
       resultsElement.classList.add("visible");
       restartButton.focus();
+    }
+
+    function renderMissedReview() {
+      const missedEntries = questions
+        .map((item, index) => ({ item, index, selectedIndex: selectedAnswers[index] }))
+        .filter(({ item, selectedIndex }) => Number.isInteger(selectedIndex) && selectedIndex !== item.correct);
+
+      missedListElement.replaceChildren();
+      missedReviewElement.hidden = false;
+
+      if (missedEntries.length === 0) {
+        perfectMessageElement.hidden = false;
+        missedListElement.hidden = true;
+        return;
+      }
+
+      perfectMessageElement.hidden = true;
+      missedListElement.hidden = false;
+
+      missedEntries.forEach(({ item, index, selectedIndex }) => {
+        const entry = document.createElement("li");
+        entry.className = "missed-item";
+
+        const questionText = document.createElement("p");
+        questionText.className = "missed-question";
+        const questionLabel = document.createElement("span");
+        questionLabel.className = "missed-index";
+        questionLabel.textContent = `Question ${index + 1}: `;
+        questionText.append(questionLabel, item.question);
+
+        const selectedText = document.createElement("p");
+        selectedText.className = "missed-answer";
+        const selectedLabel = document.createElement("span");
+        selectedLabel.className = "missed-label";
+        selectedLabel.textContent = "Your answer: ";
+        selectedText.append(selectedLabel, item.answers[selectedIndex]);
+
+        const correctText = document.createElement("p");
+        correctText.className = "missed-answer correct-answer";
+        const correctLabel = document.createElement("span");
+        correctLabel.className = "missed-label";
+        correctLabel.textContent = "Correct answer: ";
+        correctText.append(correctLabel, item.answers[item.correct]);
+
+        entry.append(questionText, selectedText, correctText);
+        missedListElement.append(entry);
+      });
+    }
+
+    function clearMissedReview() {
+      missedListElement.replaceChildren();
+      missedListElement.hidden = false;
+      perfectMessageElement.hidden = true;
+      missedReviewElement.hidden = true;
     }
 
     function restartQuiz() {
       currentQuestion = 0;
       score = 0;
+      selectedAnswers = [];
       resultsElement.classList.remove("visible");
       quizViewElement.hidden = false;
+      clearMissedReview();
       renderQuestion();
     }
 
@@ -760,6 +921,53 @@
       nextActionButton.click();
       if (!resultsElement.classList.contains("visible")) {
         throw new Error("Expected the final action to open the results screen.");
+      }
+      if (perfectMessageElement.hidden === false) {
+        throw new Error("Expected imperfect score runs to show a missed-answer list instead of perfect-score message.");
+      }
+
+      const missedItems = Array.from(missedListElement.querySelectorAll(".missed-item"));
+      if (missedItems.length !== 1) {
+        throw new Error("Expected exactly one missed question in review for a single wrong answer run.");
+      }
+
+      const missedText = missedItems[0].textContent ?? "";
+      if (!missedText.includes(initialItem.question)) {
+        throw new Error("Expected missed review to include the missed question text.");
+      }
+      if (!missedText.includes(initialItem.answers[firstChoice])) {
+        throw new Error("Expected missed review to include the player's selected answer.");
+      }
+      if (!missedText.includes(initialItem.answers[initialItem.correct])) {
+        throw new Error("Expected missed review to include the correct answer.");
+      }
+
+      restartQuiz();
+      while (currentQuestion < questions.length - 1) {
+        const item = questions[currentQuestion];
+        const buttons = Array.from(answersElement.querySelectorAll(".answer"));
+        buttons[item.correct].click();
+        nextActionButton.click();
+      }
+
+      const finalItem = questions[currentQuestion];
+      const finalButtons = Array.from(answersElement.querySelectorAll(".answer"));
+      finalButtons[finalItem.correct].click();
+      nextActionButton.click();
+
+      if (perfectMessageElement.hidden) {
+        throw new Error("Expected perfect-score runs to show a positive review message.");
+      }
+      if (missedListElement.querySelector(".missed-item")) {
+        throw new Error("Expected no missed items for a perfect score.");
+      }
+
+      restartButton.click();
+      if (resultsElement.classList.contains("visible")) {
+        throw new Error("Expected restart to leave the results screen.");
+      }
+      if (missedListElement.querySelector(".missed-item")) {
+        throw new Error("Expected restart to clear previous missed-review content.");
       }
 
       console.info("Quiz behavior checks passed.");
